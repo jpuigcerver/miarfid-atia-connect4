@@ -53,14 +53,10 @@ class Individual {
     const size_t cross_pos = udist(PRNG);
     // Do cross-over
     for (size_t i = 0; i < cross_pos; ++i) {
-      const float aux = a->w[i];
-      a->w[i] = b->w[i];
-      b->w[i] = aux;
+      std::swap(a->w[i], b->w[i]);
     }
     for (size_t i = cross_pos; i < 6; ++i) {
-      const float aux = a->w[i];
-      a->w[i] = b->w[i];
-      b->w[i] = aux;
+      std::swap(a->w[i], b->w[i]);
     }
     a->ComputeLength();
     b->ComputeLength();
@@ -75,25 +71,29 @@ class Individual {
     std::uniform_int_distribution<size_t> bitv_dist(0, 1);
     const size_t mut_pos = mutp_dist(PRNG);
     const size_t bit_pos = bitp_dist(PRNG);
-    uint32_t* fltp = (uint32_t*)(a->w + mut_pos);
-    *fltp ^= 0x01 << bit_pos;
+    a->w[mut_pos] ^= (0x01 << bit_pos);
+    /*uint32_t* fltp = (uint32_t*)(a->w + mut_pos);
+    *fltp ^= 0x01 << bit_pos;*/
     a->ComputeLength();
   }
   void Randomize() {
     std::uniform_int_distribution<size_t> udist(0, ~0);
     for (size_t i = 0; i < 3; ++i) {
-      uint32_t* wp = (uint32_t*)(w + i);
-      *wp = udist(PRNG) & 0x7FFFFFFF;
+      /*uint32_t* wp = (uint32_t*)(w + i);
+      *wp = udist(PRNG) & 0x7FFFFFFF;*/
+      w[i] = udist(PRNG) & 0x7FFFFFFF;
     }
     for (size_t i = 3; i < 6; ++i) {
-      uint32_t* wp = (uint32_t*)(w + i);
-      *wp = udist(PRNG) | 0x80000000;
+      /*uint32_t* wp = (uint32_t*)(w + i);
+      *wp = udist(PRNG) | 0x80000000;*/
+      w[i] = udist(PRNG) | 0x80000000;
     }
     ComputeLength();
   }
   bool IsFinite() const {
-    return std::isfinite(w[0]) && std::isfinite(w[1]) && std::isfinite(w[2]) &&
-        std::isfinite(w[3]) && std::isfinite(w[4]) && std::isfinite(w[5]);
+    return true;
+    /*return std::isfinite(w[0]) && std::isfinite(w[1]) && std::isfinite(w[2]) &&
+      std::isfinite(w[3]) && std::isfinite(w[4]) && std::isfinite(w[5]);*/
   }
   friend std::ostream& operator << (std::ostream& os, const Individual& i) {
     os << "(" << i.w[0] << ", " << i.w[1] << ", " << i.w[2]
@@ -117,31 +117,35 @@ class Individual {
     return w[0] != o.w[0] || w[1] != o.w[1] || w[2] != o.w[2] ||
         w[3] != o.w[3] || w[4] != o.w[4] || w[5] != o.w[5];
   }
-  const float* Weights() const {
+  const int32_t* Weights() const {
     return w;
   }
  private:
-  float w[6];
+  int32_t w[6];
   float l;
   void ComputeLength() {
-    const int exp0 = ((f2i(w[0]) & 0x7f800000) >> 23) - 127;
+    /*const int exp0 = ((f2i(w[0]) & 0x7f800000) >> 23) - 127;
     const int exp1 = ((f2i(w[1]) & 0x7f800000) >> 23) - 127;
     const int exp2 = ((f2i(w[2]) & 0x7f800000) >> 23) - 127;
     const int exp3 = ((f2i(w[3]) & 0x7f800000) >> 23) - 127;
     const int exp4 = ((f2i(w[4]) & 0x7f800000) >> 23) - 127;
     const int exp5 = ((f2i(w[5]) & 0x7f800000) >> 23) - 127;
     l = exp0 * exp0 + exp1 * exp1 + exp2 * exp2 +
-        exp3 * exp3 + exp4 * exp4 + exp5 * exp5;
+        exp3 * exp3 + exp4 * exp4 + exp5 * exp5;*/
+    l = (float)(w[0] * w[0]) + (float)(w[1] * w[1]) + (float)(w[2] * w[2]) +
+        (float)(w[3] * w[3]) + (float)(w[4] * w[4]) + (float)(w[5] * w[5]);
   }
 };
 
-void PlayGame(const float wa[6], const float wb[6], const uint16_t cols,
+void PlayGame(const int32_t wa[6], const int32_t wb[6], const uint16_t cols,
               const uint16_t rows, int* winner, int* round) {
   Board board(cols, rows);
   uint8_t ids[2][2] = {{'O','X'},{'X','O'}};
+  const float waf[6] = {(float)wa[0], (float)wa[1], (float)wa[2], (float)wa[3], (float)wa[4], (float)wa[5]};
+  const float wbf[6] = {(float)wb[0], (float)wb[1], (float)wb[2], (float)wb[3], (float)wb[4], (float)wb[5]};
   Heuristic01_MinimaxPlayer players[2] = {
-    Heuristic01_MinimaxPlayer(ids[0], FLAGS_max_depth, wa),
-    Heuristic01_MinimaxPlayer(ids[1], FLAGS_max_depth, wb)};
+    Heuristic01_MinimaxPlayer(ids[0], FLAGS_max_depth, waf),
+    Heuristic01_MinimaxPlayer(ids[1], FLAGS_max_depth, wbf)};
   *round = 0;
   *winner = 0;
   size_t curr_player = 0;
@@ -163,7 +167,6 @@ int main(int argc, char** argv) {
   PRNG.seed(FLAGS_seed);
 
   std::uniform_real_distribution<double> dist(0.0, 1.0);
-  std::uniform_int_distribution<uint16_t> bs_dist(4, 10);
   std::vector<std::pair<Badness,Individual> > population(FLAGS_population);
   std::vector<std::pair<Badness,Individual> > nbest(FLAGS_nbest);
   // Random initialization of population
@@ -208,8 +211,8 @@ int main(int argc, char** argv) {
       for (size_t j = 0; j < FLAGS_nbest; ++j) {
         int w0, w1;
         int r0, r1;
-        PlayGame(population[i].second.Weights(), nbest[j].second.Weights(), bs_dist(PRNG), bs_dist(PRNG), &w0, &r0);
-        PlayGame(nbest[j].second.Weights(), population[i].second.Weights(), bs_dist(PRNG), bs_dist(PRNG), &w1, &r1);
+        PlayGame(population[i].second.Weights(), nbest[j].second.Weights(), 7, 6, &w0, &r0);
+        PlayGame(nbest[j].second.Weights(), population[i].second.Weights(), 7, 6, &w1, &r1);
         w += w0 + w1;
         r += r0 + r1;
       }
