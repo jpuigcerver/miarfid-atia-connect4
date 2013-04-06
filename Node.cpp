@@ -39,8 +39,8 @@ void Node::ExpandMinimax(const size_t depth) {
     ch->ExpandMinimax(depth - 1);
     num_children_ += ch->NumChildren() + 1;
     const float sc = -ch->score_;
-    if (sc > score_) { score_ = sc; best_m_ = chb.first; }
     delete ch;
+    if (sc > score_) { score_ = sc; best_m_ = chb.first; }
   }
 }
 
@@ -62,10 +62,10 @@ void Node::ExpandAlphaBeta(const size_t depth, float alpha, float beta) {
     ch->ExpandAlphaBeta(depth - 1, -beta, -alpha);
     num_children_ += ch->NumChildren() + 1;
     const float sc = -ch->score_;
+    delete ch;
     if (sc > score_) { score_ = sc; best_m_ = chb.first; }
     if (sc > alpha) { alpha = sc; }
     if (alpha >= beta) { score_ = sc; best_m_ = chb.first; break; }
-    delete ch;
   }
 }
 
@@ -121,19 +121,23 @@ void Heuristic01_Node::ComputeHeuristic() {
   for (uint16_t c = 0; c < board_.Cols(); ++c) {
     for (uint16_t r = 0; r < board_.Rows(); ++r) {
       if (r + 3 < board_.Rows()) {
-        uint8_t vert[4] = { board_.Get(c, r), board_.Get(c, r + 1), board_.Get(c, r + 2), board_.Get(c, r + 3) };
+        uint8_t vert[4] = { board_.Get(c, r), board_.Get(c, r + 1),
+                            board_.Get(c, r + 2), board_.Get(c, r + 3) };
         score_ += LineHeuristic(vert);
       }
       if (c + 3 < board_.Cols()) {
-        uint8_t hori[4] = { board_.Get(c, r), board_.Get(c + 1, r), board_.Get(c + 2, r), board_.Get(c + 3, r) };
+        uint8_t hori[4] = { board_.Get(c, r), board_.Get(c + 1, r),
+                            board_.Get(c + 2, r), board_.Get(c + 3, r) };
         score_ += LineHeuristic(hori);
       }
-      if (c + 3 < board_.Cols() && r + 3 < board_.Cols()) {
-        uint8_t dia1[4] = { board_.Get(c, r), board_.Get(c + 1, r + 1), board_.Get(c + 2, r + 2), board_.Get(c + 3, r + 3) };
+      if (c + 3 < board_.Cols() && r + 3 < board_.Rows()) {
+        uint8_t dia1[4] = { board_.Get(c, r), board_.Get(c + 1, r + 1),
+                            board_.Get(c + 2, r + 2), board_.Get(c + 3, r + 3) };
         score_ += LineHeuristic(dia1);
       }
       if (c + 3 < board_.Cols() && r >= 3) {
-        uint8_t dia2[4] = { board_.Get(c, r), board_.Get(c + 1, r - 1), board_.Get(c + 2, r - 2), board_.Get(c + 3, r - 3) };
+        uint8_t dia2[4] = { board_.Get(c, r), board_.Get(c + 1, r - 1),
+                            board_.Get(c + 2, r - 2), board_.Get(c + 3, r - 3) };
         score_ += LineHeuristic(dia2);
       }
     }

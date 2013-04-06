@@ -18,7 +18,6 @@ class Node {
   virtual void ExpandMinimax(const size_t depth);
   virtual void ExpandAlphaBeta(const size_t depth, float alpha, float beta);
  protected:
-  typedef std::list<std::pair<Node*,uint32_t> > ChildrenList;
   Board board_;
   float score_;
   size_t best_m_;

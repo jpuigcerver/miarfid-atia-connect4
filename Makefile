@@ -1,6 +1,6 @@
-CXX_FLAGS=-std=c++0x -Wall -pedantic -O4 -m64 -DNDEBUG
+CXX_FLAGS=-std=c++0x -Wall -pedantic -O4 -DNDEBUG
 CXX_COMP_FLAGS=$(CXX_FLAGS)
-CXX_LINK_FLAGS=$(CXX_FLAGS) -lgflags -lglog
+CXX_LINK_FLAGS=$(CXX_FLAGS) -lgflags -lglog -lpthread
 BINARIES=connect4 weight_tunning
 
 all: $(BINARIES)

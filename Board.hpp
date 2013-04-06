@@ -1,6 +1,7 @@
 #ifndef BOARD_HPP_
 #define BOARD_HPP_
 
+#include <glog/logging.h>
 #include <stdint.h>
 #include <iostream>
 #include <list>
@@ -38,6 +39,7 @@ class Board {
   virtual std::list<std::pair<uint32_t,Board> > Expand(const uint8_t player) const;
   bool CheckFull() const;
   inline uint8_t Get(const uint16_t col, const uint16_t row) const {
+    CHECK_LT(col, cols_); CHECK_LT(row, rows_);
     return board_[col + row * cols_];
   }
   inline uint16_t Cols() const { return cols_; }
