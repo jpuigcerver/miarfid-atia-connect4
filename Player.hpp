@@ -2,13 +2,14 @@
 #define PLAYER_HPP_
 
 #include "Board.hpp"
-#include "Node.hpp"
+#include "Heuristic.hpp"
+#include "Negamax.hpp"
 
 #include <stdint.h>
 
 class Player {
  protected:
-  uint8_t player_ids_[2];
+  const uint8_t player_ids_[2];
  public:
   Player(const uint8_t player_ids[2]);
   virtual ~Player() {};
@@ -28,35 +29,65 @@ class RandomPlayer : public Player {
   virtual uint32_t Move(const Board& b);
 };
 
-class MinimaxPlayer : public Player {
+template <class Heuristic>
+class NegamaxPlayer : public Player {
  public:
-  MinimaxPlayer(const uint8_t player_ids[2], const size_t max_depth);
-  virtual ~MinimaxPlayer();
-  virtual size_t NumChildren() const;
+  NegamaxPlayer(const uint8_t player_ids[2], const size_t max_depth,
+                const Heuristic& heur, const bool shuffle);
   virtual uint32_t Move(const Board& b);
  private:
-  Node* root_;
   const size_t max_depth_;
-  virtual void Expand(const Board& init_board);
-  virtual Node* CreateRoot(const Board& init_board) const = 0;
+  const Heuristic heuristic_;
+  const bool shuff_;
 };
 
-class Heuristic00_MinimaxPlayer : public MinimaxPlayer {
+template <class Heuristic>
+class NegamaxAlphaBetaPlayer : public Player {
  public:
-  Heuristic00_MinimaxPlayer(
-      const uint8_t player_ids[2], const size_t max_depth);
+  NegamaxAlphaBetaPlayer(const uint8_t player_ids[2], const size_t max_depth,
+                         const Heuristic& heur, const bool shuffle);
+  virtual uint32_t Move(const Board& b);
  private:
-  virtual Node* CreateRoot(const Board& init_board) const;
+  const size_t max_depth_;
+  const Heuristic heuristic_;
+  const bool shuff_;
 };
 
-class Heuristic01_MinimaxPlayer : public MinimaxPlayer {
+class SimpleHeuristic_NegamaxPlayer : public NegamaxPlayer<SimpleHeuristic> {
  public:
-  Heuristic01_MinimaxPlayer(
+  SimpleHeuristic_NegamaxPlayer(
+      const uint8_t player_ids[2], const size_t max_depth, const bool shuffle);
+};
+
+class WeightHeuristic_NegamaxPlayer : public NegamaxPlayer<WeightHeuristic> {
+ public:
+  WeightHeuristic_NegamaxPlayer(
       const uint8_t player_ids[2], const size_t max_depth,
-      const float weights[6]);
- private:
-  const float weights_[6];
-  virtual Node* CreateRoot(const Board& init_board) const;
+      const float weights[6], const bool shuffle);
 };
+
+class SimpleHeuristic_NegamaxAlphaBetaPlayer :
+    public NegamaxAlphaBetaPlayer<SimpleHeuristic> {
+ public:
+  SimpleHeuristic_NegamaxAlphaBetaPlayer(
+      const uint8_t player_ids[2], const size_t max_depth, const bool shuffle);
+};
+
+class WeightHeuristic_NegamaxAlphaBetaPlayer :
+    public NegamaxAlphaBetaPlayer<WeightHeuristic> {
+ public:
+  WeightHeuristic_NegamaxAlphaBetaPlayer(
+      const uint8_t player_ids[2], const size_t max_depth,
+      const float weights[6], const bool shuffle);
+};
+
+class NetworkPlayer : public Player {
+ public:
+  NetworkPlayer(const uint8_t player_ids[2], const int fd);
+  virtual uint32_t Move(const Board& b);
+ private:
+  const int sockfd;
+};
+
 
 #endif  // PLAYER_HPP_

@@ -8,15 +8,15 @@
 const uint8_t Winner::NONE = 0;
 
 Board::Board(const uint16_t cols, const uint16_t rows)
-    : cols_(cols), rows_(rows), board_(new uint8_t [cols_ * rows_]),
-      height_(new uint16_t [cols_]) {
+    : cols_(cols), rows_(rows), board_(new uint8_t[cols_ * rows_]),
+      height_(new uint16_t[cols_]) {
   memset(board_, ' ', sizeof(uint8_t) * cols_ * rows_);
   memset(height_, 0x00, sizeof(uint16_t) * cols_);
 }
 
 Board::Board(const Board& board)
     : cols_(board.cols_), rows_(board.rows_),
-      board_(new uint8_t [cols_ * rows_]), height_(new uint16_t [cols_]) {
+      board_(new uint8_t[cols_ * rows_]), height_(new uint16_t[cols_]) {
   memcpy(board_, board.board_, sizeof(uint8_t) * cols_ * rows_);
   memcpy(height_, board.height_, sizeof(uint16_t) * cols_);
 }
@@ -24,6 +24,18 @@ Board::Board(const Board& board)
 Board::~Board() {
   delete [] board_;
   delete [] height_;
+}
+
+Board& Board::operator = (const Board& board) {
+  delete [] board_;
+  delete [] height_;
+  cols_ = board.cols_;
+  rows_ = board.rows_;
+  board_ = new uint8_t[cols_ * rows_];
+  height_ = new uint16_t[cols_];
+  memcpy(board_, board.board_, sizeof(uint8_t) * cols_ * rows_);
+  memcpy(height_, board.height_, sizeof(uint16_t) * cols_);
+  return *this;
 }
 
 bool Board::operator == (const Board& other) const {
@@ -95,9 +107,9 @@ bool Board::CheckFull() const {
   return true;
 }
 
-std::list<std::pair<uint32_t, Board> > Board::Expand(
+std::vector<std::pair<uint32_t, Board> > Board::Expand(
     const uint8_t player) const {
-  std::list<std::pair<uint32_t, Board> > children;
+  std::vector<std::pair<uint32_t, Board> > children;
   for (uint16_t col = 0; col < cols_; ++col) {
     if (height_[col] >= rows_) continue;
     Board ch(*this);
@@ -105,4 +117,31 @@ std::list<std::pair<uint32_t, Board> > Board::Expand(
     children.push_back(std::pair<uint32_t, Board>(col, ch));
   }
   return children;
+}
+
+void Board::Serialize(char** buff, size_t* size) const {
+  CHECK_NOTNULL(buff); CHECK_NOTNULL(size);
+  *size = cols_ * rows_ * sizeof(uint8_t) + cols_ * sizeof(uint16_t) +
+      2 * sizeof(uint16_t);
+  *buff = new char[*size];
+  memcpy(*buff, (char*)&cols_, sizeof(uint16_t));
+  memcpy(*buff, (char*)&rows_, sizeof(uint16_t));
+  memcpy(*buff, (char*)height_, cols_ * sizeof(uint16_t));
+  memcpy(*buff, (char*)board_, cols_ * rows_ * sizeof(uint8_t));
+}
+
+bool Board::Deserialize(const char* buff, const size_t size) {
+  CHECK_NOTNULL(buff);
+  if (size < 2 * sizeof(uint16_t)) return false;
+  memcpy((char*)(&cols_), buff, sizeof(uint16_t));
+  memcpy((char*)(&rows_), buff + sizeof(uint16_t), sizeof(uint16_t));
+  if (cols_ == 0 || rows_ == 0) return false;
+  const size_t exp_size = 2 * sizeof(uint16_t) + cols_ * sizeof(uint16_t) +
+      cols_ * rows_ * sizeof(uint8_t);
+  if (size != exp_size) return false;
+  const char* hg = buff + 2 * sizeof(uint16_t);
+  memcpy((char*)height_, hg, cols_ * sizeof(uint16_t));
+  const char* bd = buff + 2 * sizeof(uint16_t) + cols_ * sizeof(uint16_t);
+  memcpy(board_, bd, cols_ * rows_ * sizeof(uint16_t));
+  return true;
 }

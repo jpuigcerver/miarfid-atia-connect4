@@ -20,7 +20,8 @@ DEFINE_string(h01_w, "1;5;100;-2;-6;-200:1;5;100;-2;-6;-200", "Weight values for
 
 class Game {
  public:
-  typedef enum {PLY_HUMAN, PLY_RANDOM, PLY_MINIMAX_HEUR00, PLY_MINIMAX_HEUR01} PlayerType;
+  typedef enum {PLY_HUMAN, PLY_RANDOM, PLY_SIMPLE_NEGAMAX, PLY_SIMPLE_ALPHABETA,
+                PLY_WEIGHT_NEGAMAX, PLY_WEIGHT_ALPHABETA} PlayerType;
   Game() : board_(Board(FLAGS_c, FLAGS_r)), curr_player_(0) {
     // Parse AI type from arguments
     std::string player_types_str[2];
@@ -80,10 +81,14 @@ class Game {
       return Game::PLY_HUMAN;
     } else if (str == "Random") {
       return Game::PLY_RANDOM;
-    } else if (str == "Minimax00") {
-      return Game::PLY_MINIMAX_HEUR00;
-    } else if (str == "Minimax01") {
-      return Game::PLY_MINIMAX_HEUR01;
+    } else if (str == "SimpleNegamax") {
+      return Game::PLY_SIMPLE_NEGAMAX;
+    } else if (str == "SimpleAlphaBeta") {
+      return Game::PLY_SIMPLE_ALPHABETA;
+    } else if (str == "WeightNegamax") {
+      return Game::PLY_WEIGHT_NEGAMAX;
+    } else if (str == "WeightAlphaBeta") {
+      return Game::PLY_WEIGHT_ALPHABETA;
     } else {
       LOG(WARNING) << "Wrong player type: \"" << str << "\". Using Human.";
       return Game::PLY_HUMAN;
@@ -92,14 +97,18 @@ class Game {
   Player* createPlayer(const uint8_t p, const uint8_t my_id, const uint8_t en_id) {
     const uint8_t player_ids[2] = {my_id, en_id};
     switch(player_type_[p]) {
-      case PLY_HUMAN:
+      case Game::PLY_HUMAN:
         return new HumanPlayer(player_ids);
-      case PLY_RANDOM:
+      case Game::PLY_RANDOM:
         return new RandomPlayer(player_ids);
-      case PLY_MINIMAX_HEUR00:
-        return new Heuristic00_MinimaxPlayer(player_ids, player_max_depth_[p]);
-      case PLY_MINIMAX_HEUR01:
-        return new Heuristic01_MinimaxPlayer(player_ids, player_max_depth_[p], player_h01_w_[p].data());
+      case Game::PLY_SIMPLE_NEGAMAX:
+        return new SimpleHeuristic_NegamaxPlayer(player_ids, player_max_depth_[p], false);
+      case Game::PLY_SIMPLE_ALPHABETA:
+        return new SimpleHeuristic_NegamaxAlphaBetaPlayer(player_ids, player_max_depth_[p], false);
+      case Game::PLY_WEIGHT_NEGAMAX:
+        return new WeightHeuristic_NegamaxPlayer(player_ids, player_max_depth_[p], player_h01_w_[p].data(), false);
+      case Game::PLY_WEIGHT_ALPHABETA:
+        return new WeightHeuristic_NegamaxAlphaBetaPlayer(player_ids, player_max_depth_[p], player_h01_w_[p].data(), false);
       default:
         return NULL;
     }

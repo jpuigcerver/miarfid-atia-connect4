@@ -4,7 +4,7 @@
 #include <glog/logging.h>
 #include <stdint.h>
 #include <iostream>
-#include <list>
+#include <vector>
 #include <utility>
 
 struct Coord {
@@ -32,11 +32,14 @@ class Board {
   Board(const uint16_t cols, const uint16_t rows);
   Board(const Board& board);
   virtual ~Board();
+  virtual Board& operator = (const Board& other);
   virtual bool operator == (const Board& other) const;
   virtual bool Move(const uint32_t move_id, const uint8_t p);
   //virtual Winner CheckWinnerMovement(const uint32_t move_id) const;
   virtual Winner CheckWinner() const;
-  virtual std::list<std::pair<uint32_t,Board> > Expand(const uint8_t player) const;
+  virtual std::vector<std::pair<uint32_t,Board> > Expand(const uint8_t player) const;
+  virtual void Serialize(char** buff, size_t* size) const;
+  virtual bool Deserialize(const char* buff, const size_t size);
   bool CheckFull() const;
   inline uint8_t Get(const uint16_t col, const uint16_t row) const {
     CHECK_LT(col, cols_); CHECK_LT(row, rows_);
@@ -69,8 +72,8 @@ class Board {
     return os;
   }
  private:
-  const uint16_t cols_;
-  const uint16_t rows_;
+  uint16_t cols_;
+  uint16_t rows_;
   uint8_t* board_;
   uint16_t* height_;
 };

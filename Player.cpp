@@ -6,10 +6,8 @@
 
 extern std::default_random_engine PRNG;
 
-Player::Player(const uint8_t player_ids[2]) {
-  player_ids_[0] = player_ids[0];
-  player_ids_[1] = player_ids[1];
-}
+Player::Player(const uint8_t player_ids[2])
+    : player_ids_{player_ids[0], player_ids[1]} {}
 
 uint8_t Player::Id() const {
   return player_ids_[0];
@@ -50,62 +48,99 @@ uint32_t RandomPlayer::Move(const Board& b) {
   return not_full_cols[uniform(PRNG)];
 }
 
-// MinimaxPlayer
-MinimaxPlayer::MinimaxPlayer(const uint8_t player_ids[2], const size_t max_depth)
-    : Player(player_ids), root_(NULL), max_depth_(max_depth) {
-  LOG(INFO) << "Player = " << player_ids_[0] << ": Type = " << "Minimax";
+// NegamaxPlayer generic
+template <class Heuristic>
+NegamaxPlayer<Heuristic>::NegamaxPlayer(
+    const uint8_t player_ids[2], const size_t max_depth, const Heuristic& heur,
+    const bool shuffle) : Player(player_ids), max_depth_(max_depth),
+                          heuristic_(heur), shuff_(shuffle) {
+  LOG(INFO) << "Player = " << player_ids_[0] << ": Type = " << "Negamax";
   LOG(INFO) << "Player = " << player_ids_[0] << ": Depth = " << max_depth_;
 }
 
-MinimaxPlayer::~MinimaxPlayer() {
-  delete root_;
+template<class Heuristic>
+uint32_t NegamaxPlayer<Heuristic>::Move(const Board& b) {
+  size_t num_nodes = 0;
+  std::pair<float, uint32_t> best_move =
+      Negamax(b, player_ids_[0], player_ids_[1], max_depth_, heuristic_,
+              shuff_, &num_nodes);
+  LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << num_nodes;
+  return best_move.second;
 }
 
-size_t MinimaxPlayer::NumChildren() const {
-  return root_->NumChildren() + 1;
+// NegamaxAlphaBetaPlayer generic
+template <class Heuristic>
+NegamaxAlphaBetaPlayer<Heuristic>::NegamaxAlphaBetaPlayer(
+    const uint8_t player_ids[2], const size_t max_depth, const Heuristic& heur,
+    const bool shuffle) : Player(player_ids), max_depth_(max_depth),
+                          heuristic_(heur), shuff_(shuffle) {
+  LOG(INFO) << "Player = " << player_ids_[0] << ": Type = " << "NegamaxAlphaBeta";
+  LOG(INFO) << "Player = " << player_ids_[0] << ": Depth = " << max_depth_;
 }
 
-uint32_t MinimaxPlayer::Move(const Board& b) {
-  Expand(b);
-  LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << NumChildren();
-  std::pair<uint32_t, float> best_move = root_->BestMovement();
-  return best_move.first;
+template<class Heuristic>
+uint32_t NegamaxAlphaBetaPlayer<Heuristic>::Move(const Board& b) {
+  size_t num_nodes = 0;
+  std::pair<float, uint32_t> best_move = NegamaxAlphaBeta(
+      b, player_ids_[0], player_ids_[1], max_depth_, heuristic_,
+      shuff_, -INFINITY, +INFINITY, &num_nodes);
+  LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << num_nodes;
+  return best_move.second;
 }
 
-void MinimaxPlayer::Expand(const Board& init_board) {
-  if (root_ != NULL) { delete root_; }
-  root_ = CreateRoot(init_board);
-  //root_->ExpandMinimax(max_depth_);
-  root_->ExpandAlphaBeta(max_depth_, -INFINITY, +INFINITY);
-}
-
-
-// Heuristic00_MinimaxPlayer
-Heuristic00_MinimaxPlayer::Heuristic00_MinimaxPlayer(
-    const uint8_t player_ids[2], const size_t max_depth)
-    : MinimaxPlayer(player_ids, max_depth) {
+// SimpleHeuristic with Negamax
+SimpleHeuristic_NegamaxPlayer::SimpleHeuristic_NegamaxPlayer(
+    const uint8_t player_ids[2], const size_t max_depth, const bool shuffle)
+    : NegamaxPlayer(player_ids, max_depth, SimpleHeuristic(), shuffle) {
   LOG(INFO) << "Player = " << player_ids_[0]
-            << ": Heuristic = " << "Heuristic00";
+            << ": Heuristic = Heuristic00";
 }
 
-Node* Heuristic00_MinimaxPlayer::CreateRoot(const Board& init_board) const {
-  return new Heuristic00_Node(init_board, player_ids_, 0);
-}
-
-
-// Heuristic01_MinimaxPlayer
-Heuristic01_MinimaxPlayer::Heuristic01_MinimaxPlayer(
+// WeightHeuristic with Negamax
+WeightHeuristic_NegamaxPlayer::WeightHeuristic_NegamaxPlayer(
     const uint8_t player_ids[2], const size_t max_depth,
-    const float weights[6]) : MinimaxPlayer(player_ids, max_depth), weights_{
-  weights[0], weights[1], weights[2], weights[3], weights[4], weights[5]} {
-  LOG(INFO) << "Player = " << player_ids_[0] << ": Heuristic = "
-            << "Heuristic01";
+    const float weights[6], const bool shuffle)
+    : NegamaxPlayer(player_ids, max_depth, WeightHeuristic(weights), shuffle) {
+  LOG(INFO) << "Player = " << player_ids_[0]
+            << ": Heuristic = Heuristic01";
   LOG(INFO) << "Player = " << player_ids_[0] << ": Weights = "
-            << weights_[0] << ", " << weights_[1] << ", "
-            << weights_[2] << ", " << weights_[3] << ", "
-            << weights_[4] << ", " << weights_[5];
+            << weights[0] << ", " << weights[1] << ", "
+            << weights[2] << ", " << weights[3] << ", "
+            << weights[4] << ", " << weights[5];
 }
 
-Node* Heuristic01_MinimaxPlayer::CreateRoot(const Board& init_board) const {
-  return new Heuristic01_Node(init_board, player_ids_, 0, weights_);
+// SimpleHeuristic with Negamax and Alpha-Beta pruning
+SimpleHeuristic_NegamaxAlphaBetaPlayer::SimpleHeuristic_NegamaxAlphaBetaPlayer(
+    const uint8_t player_ids[2], const size_t max_depth, const bool shuffle)
+    : NegamaxAlphaBetaPlayer(
+        player_ids, max_depth, SimpleHeuristic(), shuffle) {
+  LOG(INFO) << "Player = " << player_ids_[0]
+            << ": Heuristic = Heuristic00";
+}
+
+// WeightHeuristic with Negamax and Alpha-Beta pruning
+WeightHeuristic_NegamaxAlphaBetaPlayer::WeightHeuristic_NegamaxAlphaBetaPlayer(
+    const uint8_t player_ids[2], const size_t max_depth,
+    const float weights[6], const bool shuffle)
+    : NegamaxAlphaBetaPlayer(
+        player_ids, max_depth, WeightHeuristic(weights), shuffle) {
+  LOG(INFO) << "Player = " << player_ids_[0]
+            << ": Heuristic = Heuristic01";
+  LOG(INFO) << "Player = " << player_ids_[0] << ": Weights = "
+            << weights[0] << ", " << weights[1] << ", "
+            << weights[2] << ", " << weights[3] << ", "
+            << weights[4] << ", " << weights[5];
+}
+
+NetworkPlayer::NetworkPlayer(const uint8_t player_ids[2], const int fd)
+    : Player(player_ids), sockfd(fd) {}
+
+uint32_t NetworkPlayer::Move(const Board& b) {
+  char* buff = NULL;
+  size_t size = 0;
+  size_t mov = 0;
+  b.Serialize(&buff, &size);
+  CHECK_EQ(write(sockfd, buff, size), size);
+  CHECK_EQ(read(sockfd, &mov, sizeof(uint32_t)), sizeof(uint32_t));
+  return mov;
 }
