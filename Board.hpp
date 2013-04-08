@@ -10,7 +10,7 @@
 struct Coord {
   const uint16_t c;
   const uint16_t r;
-  Coord() : c(c), r(r) {}
+  Coord() : c(0), r(0) {}
   Coord(const uint16_t c, const uint16_t r) : c(c), r(r) {}
   friend std::ostream& operator << (std::ostream& os, const Coord& c) {
     os << "(" << c.c << "," << c.r << ")";

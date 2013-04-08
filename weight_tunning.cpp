@@ -3,10 +3,14 @@
 #include <algorithm>
 #include <iostream>
 #include <random>
+#include <chrono>
 
 #include "Board.hpp"
 #include "Player.hpp"
 #include "Utils.hpp"
+
+#include <thread>
+#include <future>
 
 std::default_random_engine PRNG;
 
@@ -18,6 +22,7 @@ DEFINE_double(mutation, 0.10, "Mutation probability");
 DEFINE_double(crossover, 0.80, "Crossover probability");
 DEFINE_double(face_ratio, 0.10, "Face ratio");
 DEFINE_uint64(nbest, 3, "N-best");
+DEFINE_uint64(nthreads, 1, "Num threads");
 
 struct Badness {
   int lost;
@@ -67,28 +72,17 @@ class Individual {
     const size_t mut_pos = mutp_dist(PRNG);
     const size_t bit_pos = bitp_dist(PRNG);
     a->w[mut_pos] ^= (0x01 << bit_pos);
-    /*uint32_t* fltp = (uint32_t*)(a->w + mut_pos);
-    *fltp ^= 0x01 << bit_pos;*/
     a->ComputeLength();
   }
   void Randomize() {
     std::uniform_int_distribution<size_t> udist(0, ~0);
     for (size_t i = 0; i < 3; ++i) {
-      /*uint32_t* wp = (uint32_t*)(w + i);
-      *wp = udist(PRNG) & 0x7FFFFFFF;*/
       w[i] = udist(PRNG) & 0x7F;
     }
     for (size_t i = 3; i < 6; ++i) {
-      /*uint32_t* wp = (uint32_t*)(w + i);
-      *wp = udist(PRNG) | 0x80000000;*/
       w[i] = udist(PRNG) | 0x80;
     }
     ComputeLength();
-  }
-  bool IsFinite() const {
-    return true;
-    /*return std::isfinite(w[0]) && std::isfinite(w[1]) && std::isfinite(w[2]) &&
-      std::isfinite(w[3]) && std::isfinite(w[4]) && std::isfinite(w[5]);*/
   }
   friend std::ostream& operator << (std::ostream& os, const Individual& i) {
     os << "(" << (int)i.w[0] << ", " << (int)i.w[1] << ", " << (int)i.w[2]
@@ -157,6 +151,10 @@ void PlayGame(const int8_t wa[6], const int8_t wb[6], const uint16_t cols,
   }
 }
 
+void PlayIndividual() {
+
+}
+
 int main(int argc, char** argv) {
   // Google tools initialization
   google::InitGoogleLogging(argv[0]);
@@ -210,25 +208,38 @@ int main(int argc, char** argv) {
           return a.second == b.second;
         })));
     // Perform evaluation of each individual (old and new)
-    for (size_t i = 0; i < population.size(); ++i) {
-      int w = 0; int r = 0;
-      for (size_t j = 0; j < FLAGS_nbest; ++j) {
-        int w0, w1;
-        int r0, r1;
-        PlayGame(population[i].second.Weights(), nbest[j].second.Weights(), 7, 6, &w0, &r0);
-        PlayGame(nbest[j].second.Weights(), population[i].second.Weights(), 7, 6, &w1, &r1);
-        w += w0 + w1;
-        r += r0 + r1;
-      }
-      population[i].first = Badness(w, w < 0 ? r : -r);
+    std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+    std::vector<std::thread> threads(FLAGS_nthreads);
+    for (size_t t = 0; t < FLAGS_nthreads; ++t) {
+      threads[t] = std::thread(
+          [](std::vector<std::pair<Badness,Individual>>& population,
+             const std::vector<std::pair<Badness,Individual>>& nbest,
+             const size_t th) {
+               for (size_t i = th; i < population.size(); i += FLAGS_nthreads) {
+                 int w = 0; int r = 0;
+                 for (size_t j = 0; j < FLAGS_nbest; ++j) {
+                   int w0 = 0, w1 = 0, r0 = 0, r1 = 0;
+                   PlayGame(population[i].second.Weights(), nbest[j].second.Weights(), 7, 6, &w0, &r0);
+                   PlayGame(nbest[j].second.Weights(), population[i].second.Weights(), 7, 6, &w1, &r1);
+                   w += w0 - w1;
+                   r += r0 + r1;
+                 }
+                 population[i].first = Badness(w, w < 0 ? r : -r);
+               }
+             }, std::ref(population), std::cref(nbest), t);
     }
+    for (size_t t = 0; t < FLAGS_nthreads; ++t) {
+      threads[t].join();
+    }
+    std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
     // Sort individuals in order of increasing badness
     std::sort(population.begin(), population.end());
     population.resize(FLAGS_population);
     for (size_t i = 0; i < FLAGS_nbest; ++i) {
       nbest[i] = population[i];
     }
-    std::cout << "Generation " << g << " = " << nbest[0].second << " " << nbest[0].first << std::endl;
+    std::chrono::duration<float> ts = t2 - t1;
+    std::cout << "Generation " << g << " = " << nbest[0].second << " " << nbest[0].first << " (Time = " << ts.count() << ")" << std::endl;
   }
   return 0;
 }
