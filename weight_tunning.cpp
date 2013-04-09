@@ -152,10 +152,6 @@ void PlayGame(const int8_t wa[6], const int8_t wb[6], const uint16_t cols,
   }
 }
 
-void PlayIndividual() {
-
-}
-
 int main(int argc, char** argv) {
   // Google tools initialization
   google::InitGoogleLogging(argv[0]);
