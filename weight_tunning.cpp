@@ -18,9 +18,8 @@ DEFINE_uint64(seed, 0, "Random seed");
 DEFINE_uint64(generations, 1000, "Number of generations");
 DEFINE_uint64(population, 1000, "Population size");
 DEFINE_uint64(max_depth, 4, "Max depth");
-DEFINE_double(mutation, 0.10, "Mutation probability");
+DEFINE_double(mutation, 0.02, "Bit mutation probability");
 DEFINE_double(crossover, 0.80, "Crossover probability");
-DEFINE_double(face_ratio, 0.10, "Face ratio");
 DEFINE_uint64(nbest, 3, "N-best");
 DEFINE_uint64(nthreads, 1, "Num threads");
 
@@ -63,15 +62,17 @@ class Individual {
     a->ComputeLength();
     b->ComputeLength();
   }
-  static void Mutation(Individual* a) {
+  static void Mutation(Individual* a, const float p) {
     CHECK_NOTNULL(a);
-    // Distribution choosing which weight is mutated
-    std::uniform_int_distribution<size_t> mutp_dist(0, 5);
-    // Distribution choosing which bit is mutated (sign bit excluded)
-    std::uniform_int_distribution<size_t> bitp_dist(0, 7);
-    const size_t mut_pos = mutp_dist(PRNG);
-    const size_t bit_pos = bitp_dist(PRNG);
-    a->w[mut_pos] ^= (0x01 << bit_pos);
+    // Probability of bit mutation
+    std::uniform_real_distribution<float> mut_dist(0.0f, 1.0f);
+    for (size_t i = 0; i < 6; ++i) {
+      for (size_t j = 0; j < 7; ++j) {
+        if (mut_dist(PRNG) < p) {
+          a->w[i] ^= (0x01 << j);
+        }
+      }
+    }
     a->ComputeLength();
   }
   void Randomize() {
@@ -184,12 +185,8 @@ int main(int argc, char** argv) {
         Individual::Crossover(
             &population[i].second, &population[i + half_pop].second);
       }
-      if (dist(PRNG) < FLAGS_mutation) {
-        Individual::Mutation(&population[i].second);
-      }
-      if (dist(PRNG) < FLAGS_mutation) {
-        Individual::Mutation(&population[i + half_pop].second);
-      }
+      Individual::Mutation(&population[i].second, FLAGS_mutation);
+      Individual::Mutation(&population[i + half_pop].second, FLAGS_mutation);
     }
     // Add previous nbest individuals
     for (size_t i = 0; i < nbest.size(); ++i) {
