@@ -1,14 +1,15 @@
-#include <glog/logging.h>
-#include <google/gflags.h>
-#include <iostream>
-#include <fstream>
-#include <stdint.h>
-#include <cstring>
-#include <cstdlib>
-
 #include "Board.hpp"
 #include "Player.hpp"
 #include "Utils.hpp"
+
+#include <glog/logging.h>
+#include <google/gflags.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <iostream>
+#include <fstream>
+#include <random>
 
 DEFINE_string(o, "", "Output filename. Use '-' for stdout");
 DEFINE_uint64(rows, 6, "Board rows");
@@ -125,11 +126,7 @@ class Game {
 };
 
 
-
-#include <random>
 std::default_random_engine PRNG;
-
-
 
 int main(int argc, char** argv) {
   // Google tools initialization
@@ -139,7 +136,16 @@ int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Random seed
   PRNG.seed(FLAGS_seed);
-
+  // Show used options
+  LOG(INFO) << "-o " << FLAGS_o;
+  LOG(INFO) << "-rows " << FLAGS_rows;
+  LOG(INFO) << "-cols " << FLAGS_cols;
+  LOG(INFO) << "-seed " << FLAGS_seed;
+  LOG(INFO) << "-ai " << FLAGS_ai;
+  LOG(INFO) << "-max_depth " << FLAGS_max_depth;
+  LOG(INFO) << "-wh " << FLAGS_wh;
+  LOG(INFO) << "-random " << FLAGS_random;
+  // Play!
   Game game;
   game.Play();
   return 0;
