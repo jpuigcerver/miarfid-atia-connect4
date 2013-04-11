@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 #include <iostream>
 #include <random>
+#include <chrono>
 
 extern std::default_random_engine PRNG;
 
@@ -61,10 +62,13 @@ NegamaxPlayer<Heuristic>::NegamaxPlayer(
 template<class Heuristic>
 uint32_t NegamaxPlayer<Heuristic>::Move(const Board& b) {
   size_t num_nodes = 0;
-  std::pair<float, uint32_t> best_move =
+  const std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+  const std::pair<float, uint32_t> best_move =
       Negamax(b, player_ids_[0], player_ids_[1], max_depth_, heuristic_,
               shuff_, &num_nodes);
-  LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << num_nodes;
+  const std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+  std::chrono::duration<float> ts = t2 - t1;
+  LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << num_nodes << ", Time = " << ts.count() << "sec.";
   return best_move.second;
 }
 
@@ -81,10 +85,13 @@ NegamaxAlphaBetaPlayer<Heuristic>::NegamaxAlphaBetaPlayer(
 template<class Heuristic>
 uint32_t NegamaxAlphaBetaPlayer<Heuristic>::Move(const Board& b) {
   size_t num_nodes = 0;
-  std::pair<float, uint32_t> best_move = NegamaxAlphaBeta(
+  const std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+  const std::pair<float, uint32_t> best_move = NegamaxAlphaBeta(
       b, player_ids_[0], player_ids_[1], max_depth_, heuristic_,
       shuff_, -INFINITY, +INFINITY, &num_nodes);
-  LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << num_nodes;
+  const std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+  std::chrono::duration<float> ts = t2 - t1;
+  LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << num_nodes << ", Time = " << ts.count() << "sec.";
   return best_move.second;
 }
 

@@ -5,8 +5,6 @@
 
 #include <algorithm>
 
-const uint8_t Winner::NONE = 0;
-
 Board::Board(const uint16_t cols, const uint16_t rows)
     : cols_(cols), rows_(rows), board_(new uint8_t[cols_ * rows_]),
       height_(new uint16_t[cols_]) {
@@ -121,27 +119,55 @@ std::vector<std::pair<uint32_t, Board> > Board::Expand(
 
 void Board::Serialize(char** buff, size_t* size) const {
   CHECK_NOTNULL(buff); CHECK_NOTNULL(size);
-  *size = cols_ * rows_ * sizeof(uint8_t) + cols_ * sizeof(uint16_t) +
-      2 * sizeof(uint16_t);
+  *size = cols_ * rows_ * sizeof(uint8_t) + 2 * sizeof(uint16_t);
   *buff = new char[*size];
-  memcpy(*buff, (char*)&cols_, sizeof(uint16_t));
-  memcpy(*buff, (char*)&rows_, sizeof(uint16_t));
-  memcpy(*buff, (char*)height_, cols_ * sizeof(uint16_t));
-  memcpy(*buff, (char*)board_, cols_ * rows_ * sizeof(uint8_t));
+  char* cols_pos = *buff;
+  char* rows_pos = cols_pos + sizeof(uint16_t);
+  char* board_pos = rows_pos + sizeof(uint16_t);
+  memcpy(cols_pos, (char*)&cols_, sizeof(uint16_t));
+  memcpy(rows_pos, (char*)&rows_, sizeof(uint16_t));
+  memcpy(board_pos, (char*)board_, cols_ * rows_ * sizeof(uint8_t));
 }
 
 bool Board::Deserialize(const char* buff, const size_t size) {
   CHECK_NOTNULL(buff);
   if (size < 2 * sizeof(uint16_t)) return false;
-  memcpy((char*)(&cols_), buff, sizeof(uint16_t));
-  memcpy((char*)(&rows_), buff + sizeof(uint16_t), sizeof(uint16_t));
+  const char* cols_pos = buff;
+  const char* rows_pos = cols_pos + sizeof(uint16_t);
+  const char* board_pos = rows_pos + sizeof(uint16_t);
+  memcpy((char*)(&cols_), cols_pos, sizeof(uint16_t));
+  memcpy((char*)(&rows_), rows_pos, sizeof(uint16_t));
   if (cols_ == 0 || rows_ == 0) return false;
-  const size_t exp_size = 2 * sizeof(uint16_t) + cols_ * sizeof(uint16_t) +
-      cols_ * rows_ * sizeof(uint8_t);
+  const size_t exp_size = cols_ * rows_ * sizeof(uint8_t) +
+      2 * sizeof(uint16_t);
   if (size != exp_size) return false;
-  const char* hg = buff + 2 * sizeof(uint16_t);
-  memcpy((char*)height_, hg, cols_ * sizeof(uint16_t));
-  const char* bd = buff + 2 * sizeof(uint16_t) + cols_ * sizeof(uint16_t);
-  memcpy(board_, bd, cols_ * rows_ * sizeof(uint16_t));
+  height_ = new uint16_t[cols_];
+  board_ = new uint8_t[cols_ * rows_];
+  memcpy((char*)board_, board_pos, cols_ * rows_ * sizeof(uint16_t));
+  for (uint16_t c = 0; c < cols_; ++c) {
+    height_[c] = 0;
+    for (uint16_t r = 0; r < rows_ && board_[c + r * cols_] != ' ';
+         ++r, ++height_[c]);
+  }
   return true;
+}
+
+void Board::Print(std::ostream& os, const size_t sp) const {
+  for (size_t s = 0; s < sp; ++s) os << ' ';
+  for (uint16_t c = 0; c < cols_; ++c)
+    os << '-';
+  os << std::endl;
+  for (uint16_t r1 = rows_; r1 > 0; --r1) {
+    const uint16_t r = r1 - 1;
+    for (size_t s = 0; s < sp; ++s) os << ' ';
+    for (uint16_t c = 0; c < cols_; ++c) {
+      const uint8_t p = Get(c, r);
+      os << p;
+    }
+    os << std::endl;
+  }
+  for (size_t s = 0; s < sp; ++s) os << ' ';
+  for (uint16_t c = 0; c < cols_; ++c)
+    os << '-';
+  os << std::endl;
 }

@@ -12,6 +12,8 @@
 #include <thread>
 #include <future>
 
+typedef int16_t Wtype;
+
 std::default_random_engine PRNG;
 
 DEFINE_uint64(seed, 0, "Random seed");
@@ -20,8 +22,11 @@ DEFINE_uint64(population, 1000, "Population size");
 DEFINE_uint64(max_depth, 4, "Max depth");
 DEFINE_double(mutation, 0.02, "Bit mutation probability");
 DEFINE_double(crossover, 0.80, "Crossover probability");
-DEFINE_uint64(nbest, 3, "N-best");
+DEFINE_uint64(nbest, 5, "N-best");
 DEFINE_uint64(nthreads, 1, "Num threads");
+DEFINE_uint64(rows, 6, "Board rows");
+DEFINE_uint64(cols, 7, "Board columns");
+DEFINE_bool(random, true, "Non-deterministic Negamax algorithm");
 
 struct Badness {
   int lost;
@@ -43,11 +48,6 @@ struct Badness {
   }
 };
 
-uint32_t f2i(float f) {
-  const uint32_t* pf = (const uint32_t*)(&f);
-  return *pf;
-}
-
 class Individual {
  public:
   static void Crossover(Individual* a, Individual* b) {
@@ -67,7 +67,7 @@ class Individual {
     // Probability of bit mutation
     std::uniform_real_distribution<float> mut_dist(0.0f, 1.0f);
     for (size_t i = 0; i < 6; ++i) {
-      for (size_t j = 0; j < 7; ++j) {
+      for (size_t j = 0; j < sizeof(Wtype) * 8 - 1; ++j) {
         if (mut_dist(PRNG) < p) {
           a->w[i] ^= (0x01 << j);
         }
@@ -76,18 +76,19 @@ class Individual {
     a->ComputeLength();
   }
   void Randomize() {
-    std::uniform_int_distribution<size_t> udist(0, ~0);
+    std::uniform_int_distribution<uint16_t> udist(0, ~0);
+    const Wtype sign_bit = 0x01 << (sizeof(Wtype) * 8 - 1);
     for (size_t i = 0; i < 3; ++i) {
-      w[i] = udist(PRNG) & 0x7F;
+      w[i] = udist(PRNG) & ~sign_bit;
     }
     for (size_t i = 3; i < 6; ++i) {
-      w[i] = udist(PRNG) | 0x80;
+      w[i] = udist(PRNG) | sign_bit;
     }
     ComputeLength();
   }
   friend std::ostream& operator << (std::ostream& os, const Individual& i) {
-    os << "(" << (int)i.w[0] << ", " << (int)i.w[1] << ", " << (int)i.w[2]
-       << ", " << (int)i.w[3] << ", " << (int)i.w[4] << ", " << (int)i.w[5]
+    os << "(" << (int)i.w[0] << " " << (int)i.w[1] << " " << (int)i.w[2]
+       << " " << (int)i.w[3] << " " << (int)i.w[4] << " " << (int)i.w[5]
        << ")";
     return os;
   }
@@ -117,11 +118,11 @@ class Individual {
     return w[0] != o.w[0] || w[1] != o.w[1] || w[2] != o.w[2] ||
         w[3] != o.w[3] || w[4] != o.w[4] || w[5] != o.w[5];
   }
-  const int8_t* Weights() const {
+  const Wtype* Weights() const {
     return w;
   }
  private:
-  int8_t w[6];
+  Wtype w[6];
   float l;
   void ComputeLength() {
     l = 0.0f;
@@ -132,15 +133,15 @@ class Individual {
   }
 };
 
-void PlayGame(const int8_t wa[6], const int8_t wb[6], const uint16_t cols,
+void PlayGame(const Wtype wa[6], const Wtype wb[6], const uint16_t cols,
               const uint16_t rows, int* winner, int* round) {
   Board board(cols, rows);
   uint8_t ids[2][2] = {{'O','X'},{'X','O'}};
   const float waf[6] = {(float)wa[0], (float)wa[1], (float)wa[2], (float)wa[3], (float)wa[4], (float)wa[5]};
   const float wbf[6] = {(float)wb[0], (float)wb[1], (float)wb[2], (float)wb[3], (float)wb[4], (float)wb[5]};
   WeightHeuristic_NegamaxAlphaBetaPlayer players[2] = {
-    WeightHeuristic_NegamaxAlphaBetaPlayer(ids[0], FLAGS_max_depth, waf, true),
-    WeightHeuristic_NegamaxAlphaBetaPlayer(ids[1], FLAGS_max_depth, wbf, true)};
+    WeightHeuristic_NegamaxAlphaBetaPlayer(ids[0], FLAGS_max_depth, waf, FLAGS_random),
+    WeightHeuristic_NegamaxAlphaBetaPlayer(ids[1], FLAGS_max_depth, wbf, FLAGS_random)};
   *round = 0;
   *winner = 0;
   size_t curr_player = 0;
@@ -212,8 +213,8 @@ int main(int argc, char** argv) {
                  int w = 0; int r = 0;
                  for (size_t j = 0; j < FLAGS_nbest; ++j) {
                    int w0 = 0, w1 = 0, r0 = 0, r1 = 0;
-                   PlayGame(population[i].second.Weights(), nbest[j].second.Weights(), 7, 6, &w0, &r0);
-                   PlayGame(nbest[j].second.Weights(), population[i].second.Weights(), 7, 6, &w1, &r1);
+                   PlayGame(population[i].second.Weights(), nbest[j].second.Weights(), FLAGS_cols, FLAGS_rows, &w0, &r0);
+                   PlayGame(nbest[j].second.Weights(), population[i].second.Weights(), FLAGS_cols, FLAGS_rows, &w1, &r1);
                    w += w0 - w1;
                    r += r0 + r1;
                  }
