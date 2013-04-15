@@ -5,7 +5,7 @@ A Connect Four game based on Negamax with Alpha-Beta prunning.
 
 Author
 ------
-Joan Puigcerver i Pérez <joapuipe@upv.es>
+Joan Puigcerver i Pérez < joapuipe@upv.es >
 
 Requirements
 ------------
