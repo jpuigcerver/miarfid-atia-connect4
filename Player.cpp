@@ -20,6 +20,7 @@ HumanPlayer::HumanPlayer(const uint8_t player_ids[2]) : Player(player_ids) {
 }
 
 uint32_t HumanPlayer::Move(const Board& b) {
+  const std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
   std::cout << "Current board: " << std::endl << b;
   uint16_t col = 0;
   do {
@@ -27,6 +28,9 @@ uint32_t HumanPlayer::Move(const Board& b) {
               << b.Cols() - 1 << "): ";
     std::cin >> col;
   } while (col >= b.Cols() || b.Height(col) >= b.Rows());
+  const std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+  const std::chrono::duration<float> ts = t2 - t1;
+  LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << 0 << ", Time = " << ts.count() << "sec.";
   return col;
 }
 
@@ -36,6 +40,7 @@ RandomPlayer::RandomPlayer(const uint8_t player_ids[2]) : Player(player_ids) {
 }
 
 uint32_t RandomPlayer::Move(const Board& b) {
+  const std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
   std::vector<uint16_t> not_full_cols;
   for (uint16_t c = 0; c < b.Cols(); ++c) {
     if (b.Height(c) < b.Rows()) {
@@ -46,7 +51,11 @@ uint32_t RandomPlayer::Move(const Board& b) {
     return 0;
   }
   std::uniform_int_distribution<uint16_t> uniform(0, not_full_cols.size() - 1);
-  return not_full_cols[uniform(PRNG)];
+  const uint32_t mov = not_full_cols[uniform(PRNG)];
+  const std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+  const std::chrono::duration<float> ts = t2 - t1;
+  LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << 0 << ", Time = " << ts.count() << "sec.";
+  return mov;
 }
 
 // NegamaxPlayer generic
@@ -67,7 +76,7 @@ uint32_t NegamaxPlayer<Heuristic>::Move(const Board& b) {
       Negamax(b, player_ids_[0], player_ids_[1], max_depth_, heuristic_,
               shuff_, &num_nodes);
   const std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-  std::chrono::duration<float> ts = t2 - t1;
+  const std::chrono::duration<float> ts = t2 - t1;
   LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << num_nodes << ", Time = " << ts.count() << "sec.";
   return best_move.second;
 }
@@ -90,7 +99,7 @@ uint32_t NegamaxAlphaBetaPlayer<Heuristic>::Move(const Board& b) {
       b, player_ids_[0], player_ids_[1], max_depth_, heuristic_,
       shuff_, -INFINITY, +INFINITY, &num_nodes);
   const std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-  std::chrono::duration<float> ts = t2 - t1;
+  const std::chrono::duration<float> ts = t2 - t1;
   LOG(INFO) << "Player = " << player_ids_[0] << ": Nodes = " << num_nodes << ", Time = " << ts.count() << "sec.";
   return best_move.second;
 }

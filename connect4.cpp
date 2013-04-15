@@ -18,7 +18,7 @@ DEFINE_uint64(seed, 0, "Random seed");
 DEFINE_string(ai, "Human:Human", "Valid intelligences: Human | Random | "
               "SimpleNegamax | SimpleAlphaBeta | WeightNegamax | WeightAlphaBeta");
 DEFINE_string(max_depth, "5:5", "Max. depth for Minimax algorithm");
-DEFINE_string(wh, "1;5;100;-2;-6;-200:1;5;100;-2;-6;-200", "Values for weight heuristic");
+DEFINE_string(wh, "4;13;121;-10;-31;-128:4;13;121;-10;-31;-128", "Values for weight heuristic");
 DEFINE_string(random, "0:0", "Non-deterministic Negamax algorithm");
 
 class Game {
