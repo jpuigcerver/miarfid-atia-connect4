@@ -27,7 +27,8 @@ There are two main binaries that will be built using `make`.
 ### connect4
 `connect4` is the main program which implements the Connect Four game,
 use it to play against an onther human or try to beat my AI. Unfortunately,
-`connect4` does not have a GUI, so you will have to play using your keyboard.
+`connect4` does not have a GUI, so you will have to play using your keyboard
+and (again) your favorite terminal.
 
 ```
 $ ./connect4 -helpshort
